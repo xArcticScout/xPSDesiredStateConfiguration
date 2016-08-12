@@ -60,6 +60,6 @@ deploy_script:
           Push-AppveyorArtifact $_
         }
 
-
-
-
+on_finish:
+  - ps: |
+      $blockRdp = $true
