@@ -258,31 +258,23 @@ function Set-TargetResource
     Update-LocationTagInApplicationHostConfigForAuthentication -WebSite $EndpointName -Authentication "basic"
     Update-LocationTagInApplicationHostConfigForAuthentication -WebSite $EndpointName -Authentication "windows"
     
-    if ($IsBlue)
+    if($SqlProvider)
     {
-        if($SqlProvider)
-        {
-             Write-Verbose "Set values into the web.config that define the SQL Connection "
-             PSWSIISEndpoint\Set-AppSettingsInWebconfig -path $PhysicalPath -key "dbprovider" -value $jet4provider
-             PSWSIISEndpoint\Set-AppSettingsInWebconfig -path $PhysicalPath -key "dbconnectionstr"-value $SqlConnectionString
-        }
-        else
-        {
+         Write-Verbose "Set values into the web.config that define the SQL Connection "
+         PSWSIISEndpoint\Set-AppSettingsInWebconfig -path $PhysicalPath -key "dbprovider" -value $jet4provider
+         PSWSIISEndpoint\Set-AppSettingsInWebconfig -path $PhysicalPath -key "dbconnectionstr"-value $SqlConnectionString
+         if($IsBlue) { Set-BindingRedirectSettingInWebConfig -path $PhysicalPath }
+    }
+    elseif ($IsBlue)
+    {
             Write-Verbose "Set values into the web.config that define the repository for BLUE OS"
             PSWSIISEndpoint\Set-AppSettingsInWebconfig -path $PhysicalPath -key "dbprovider" -value $eseprovider
             PSWSIISEndpoint\Set-AppSettingsInWebconfig -path $PhysicalPath -key "dbconnectionstr"-value $esedatabase
-        }
-        Set-BindingRedirectSettingInWebConfig -path $PhysicalPath
+            Set-BindingRedirectSettingInWebConfig -path $PhysicalPath
     }
     else
     {
-        if($SqlProvider)
-        {
-             Write-Verbose "Set values into the web.config that define the SQL Connection "
-             PSWSIISEndpoint\Set-AppSettingsInWebconfig -path $PhysicalPath -key "dbprovider" -value $jet4provider
-             PSWSIISEndpoint\Set-AppSettingsInWebconfig -path $PhysicalPath -key "dbconnectionstr"-value $SqlConnectionString
-        }
-        elseif($isDownlevelOfBlue)
+        if($isDownlevelOfBlue)
         {
             Write-Verbose "Set values into the web.config that define the repository for non-BLUE Downlevel OS"
             $repository = Join-Path "$DatabasePath" "Devices.mdb"
