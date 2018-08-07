@@ -127,7 +127,7 @@ function Get-TargetResource
 
         To ensure that the group does exist, set this property to present.
         To ensure that the group does not exist, set this property to Absent.
-        
+
         The default value is Present.
 
     .PARAMETER Description
@@ -138,10 +138,10 @@ function Get-TargetResource
 
         This property will replace all the current group members with the specified members.
 
-        Members should be specified as strings in the format of their domain qualified name 
+        Members should be specified as strings in the format of their domain qualified name
         (domain\username), their UPN (username@domainname), their distinguished name (CN=username,DC=...),
-        or their username (for local machine accounts).  
-        
+        or their username (for local machine accounts).
+
         Using either the MembersToExclude or MembersToInclude properties in the same configuration
         as this property will generate an error.
 
@@ -150,7 +150,7 @@ function Get-TargetResource
 
         This property will only add members to a group.
 
-        Members should be specified as strings in the format of their domain qualified name 
+        Members should be specified as strings in the format of their domain qualified name
         (domain\username), their UPN (username@domainname), their distinguished name (CN=username,DC=...),
         or their username (for local machine accounts).
 
@@ -161,7 +161,7 @@ function Get-TargetResource
 
         This property will only remove members from a group.
 
-        Members should be specified as strings in the format of their domain qualified name 
+        Members should be specified as strings in the format of their domain qualified name
         (domain\username), their UPN (username@domainname), their distinguished name (CN=username,DC=...),
         or their username (for local machine accounts).
 
@@ -212,7 +212,11 @@ function Set-TargetResource
 
     Write-Verbose ($script:localizedData.SetTargetResourceStartMessage -f $GroupName)
 
-    Assert-GroupNameValid -GroupName $GroupName
+
+    $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to the SID for that group internally, to check whether or not a group exists.
+
+    Assert-GroupNameValid -GroupName $GroupSID
 
     if (Test-IsNanoServer)
     {
@@ -223,7 +227,7 @@ function Set-TargetResource
         Set-TargetResourceOnFullSKU @PSBoundParameters
     }
 
-    Write-Verbose ($script:localizedData.SetTargetResourceEndMessage -f $GroupName)
+    Write-Verbose ($script:localizedData.SetTargetResourceEndMessage -f $GroupName, $GroupSID)
 }
 
 <#
@@ -244,10 +248,10 @@ function Set-TargetResource
 
     .PARAMETER Members
         The list of members the group should have.
-        
-        The value of this property is an array of strings of the formats domain qualified name 
+
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
-        a unqualified (username) for local machine accounts.  
+        a unqualified (username) for local machine accounts.
 
         If you set this property in a configuration, do not use either the MembersToExclude or
         MembersToInclude property. Doing so will generate an error.
@@ -255,9 +259,9 @@ function Set-TargetResource
     .PARAMETER MembersToInclude
         A list of members that should be in the group.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
-        a unqualified (username) for local machine accounts.  
+        a unqualified (username) for local machine accounts.
 
         If you set this property in a configuration, do not use the Members property.
         Doing so will generate an error.
@@ -265,7 +269,7 @@ function Set-TargetResource
     .PARAMETER MembersToExclude
         A list of members that should not be in the group.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
 
@@ -308,16 +312,19 @@ function Test-TargetResource
         $Credential
     )
 
-    Assert-GroupNameValid -GroupName $GroupName
+    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to a SID internally.
+
+    Assert-GroupNameValid -GroupName $SID
 
     if (Test-IsNanoServer)
     {
-        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnNanoServer', $GroupName)
+        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnNanoServer', $GroupName, $GroupSID)
         return Test-TargetResourceOnNanoServer @PSBoundParameters
     }
     else
     {
-        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnFullSKU', $GroupName)
+        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnFullSKU', $GroupName, $GroupSID)
         return Test-TargetResourceOnFullSKU @PSBoundParameters
     }
 }
@@ -351,6 +358,9 @@ function Get-TargetResourceOnFullSKU
     $principalContextCache = @{}
     $disposables = New-Object -TypeName 'System.Collections.ArrayList'
 
+    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to a SID internally, to check whether or not a group exists.
+
     try
     {
         $principalContext = Get-PrincipalContext `
@@ -358,7 +368,7 @@ function Get-TargetResourceOnFullSKU
             -Disposables $Disposables `
             -Scope $env:COMPUTERNAME
 
-        $group = Get-Group -GroupName $GroupName -PrincipalContext $principalContext
+        $group = Get-Group -GroupName $GroupSID-PrincipalContext $principalContext
 
         if ($null -ne $group)
         {
@@ -379,7 +389,7 @@ function Get-TargetResourceOnFullSKU
         {
             # The group was not found.
             return @{
-                GroupName = $GroupName
+                GroupName = $GroupName, $GroupSID
                 Ensure = 'Absent'
             }
         }
@@ -416,9 +426,12 @@ function Get-TargetResourceOnNanoServer
         $Credential
     )
 
+    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to a SID internally, to check whether or not a group exists.
+
     try
     {
-        $group = Get-LocalGroup -Name $GroupName -ErrorAction 'Stop'
+        $group = Get-LocalGroup -Name $GroupSID-ErrorAction 'Stop'
     }
     catch
     {
@@ -454,10 +467,10 @@ function Get-TargetResourceOnNanoServer
 
     .PARAMETER Ensure
         Indicates if the group should exist or not.
-        
+
         Set this property to Present to ensure that the group exists.
         Set this property to Absent to ensure that the group does not exist.
-        
+
         The default value is Present.
 
     .PARAMETER Description
@@ -465,31 +478,31 @@ function Get-TargetResourceOnNanoServer
 
     .PARAMETER Members
         Use this property to replace the current group membership with the specified members.
-        
-        The value of this property is an array of strings of the formats domain qualified name 
+
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         an unqualified (username) for local machine accounts.
-        
-        If you set this property in a configuration, do not use either the MembersToExclude or 
+
+        If you set this property in a configuration, do not use either the MembersToExclude or
         MembersToInclude property. Doing so will generate an error.
 
     .PARAMETER MembersToInclude
         Use this property to add members to the existing membership of the group.
-        
-        The value of this property is an array of strings of the formats domain qualified name 
+
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
-        a unqualified (username) for local machine accounts. 
-        
+        a unqualified (username) for local machine accounts.
+
         If you set this property in a configuration, do not use the Members property.
         Doing so will generate an error.
 
     .PARAMETER MembersToExclude
         Use this property to remove members from the existing membership of the group.
-        
-        The value of this property is an array of strings of the formats domain qualified name 
+
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
-        a unqualified (username) for local machine accounts. 
-        
+        a unqualified (username) for local machine accounts.
+
         If you set this property in a configuration, do not use the Members property.
         Doing so will generate an error.
 
@@ -540,13 +553,16 @@ function Set-TargetResourceOnFullSKU
             -Disposables $disposables `
             -Scope $env:computerName
 
-        # Try to find a group by its name.
-        $group = Get-Group -GroupName $GroupName -PrincipalContext $principalContext
+          # Try to find a group by its SID.
+        $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+          #This converts the $GroupName to a SID internally, to check whether or not a group exists.
+
+        $group = Get-Group -GroupName $GroupSID-PrincipalContext $principalContext
         $groupOriginallyExists = $null -ne $group
 
         if ($Ensure -eq 'Present')
         {
-            $shouldProcessTarget = $script:localizedData.GroupWithName -f $GroupName
+            $shouldProcessTarget = $script:localizedData.GroupWithName -f $GroupSID
             if ($groupOriginallyExists)
             {
                 $null = $disposables.Add($group)
@@ -669,7 +685,7 @@ function Set-TargetResourceOnFullSKU
                     }
                     else
                     {
-                        Write-Verbose -Message ($script:localizedData.GroupAndMembersEmpty -f $GroupName)
+                        Write-Verbose -Message ($script:localizedData.GroupAndMembersEmpty -f $GroupName, $GroupSID)
                     }
                 }
                 elseif ($PSBoundParameters.ContainsKey('MembersToInclude') -or $PSBoundParameters.ContainsKey('MembersToExclude'))
@@ -757,16 +773,16 @@ function Set-TargetResourceOnFullSKU
                     # Send an operation success verbose message.
                     if ($groupOriginallyExists)
                     {
-                        Write-Verbose -Message ($script:localizedData.GroupUpdated -f $GroupName)
+                        Write-Verbose -Message ($script:localizedData.GroupUpdated -f $GroupName, $GroupSID)
                     }
                     else
                     {
-                        Write-Verbose -Message ($script:localizedData.GroupCreated -f $GroupName)
+                        Write-Verbose -Message ($script:localizedData.GroupCreated -f $GroupName, $GroupSID)
                     }
                 }
                 else
                 {
-                    Write-Verbose -Message ($script:localizedData.NoConfigurationRequired -f $GroupName)
+                    Write-Verbose -Message ($script:localizedData.NoConfigurationRequired -f $GroupName, $GroupSID)
                 }
             }
         }
@@ -774,11 +790,11 @@ function Set-TargetResourceOnFullSKU
         {
             if ($groupOriginallyExists)
             {
-                if ($PSCmdlet.ShouldProcess(($script:localizedData.GroupWithName -f $GroupName), $script:localizedData.RemoveOperation))
+                if ($PSCmdlet.ShouldProcess(($script:localizedData.GroupWithName -f $GroupSID), $script:localizedData.RemoveOperation))
                 {
                     # Don't add group to $disposables since Delete also disposes.
                     Remove-Group -Group $group
-                    Write-Verbose -Message ($script:localizedData.GroupRemoved -f $GroupName)
+                    Write-Verbose -Message ($script:localizedData.GroupRemoved -f $GroupName, $GroupSID)
                 }
                 else
                 {
@@ -787,7 +803,7 @@ function Set-TargetResourceOnFullSKU
             }
             else
             {
-                Write-Verbose -Message ($script:localizedData.NoConfigurationRequiredGroupDoesNotExist -f $GroupName)
+                Write-Verbose -Message ($script:localizedData.NoConfigurationRequiredGroupDoesNotExist -f $GroupName, $GroupSID)
             }
         }
     }
@@ -806,10 +822,10 @@ function Set-TargetResourceOnFullSKU
 
     .PARAMETER Ensure
         Indicates if the group should exist or not.
-        
+
         Set this property to Present to ensure that the group exists.
         Set this property to Absent to ensure that the group does not exist.
-        
+
         The default value is Present.
 
     .PARAMETER Description
@@ -817,31 +833,31 @@ function Set-TargetResourceOnFullSKU
 
     .PARAMETER Members
         Use this property to replace the current group membership with the specified members.
-        
-        The value of this property is an array of strings of the formats domain qualified name 
+
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
-        
-        If you set this property in a configuration, do not use either the MembersToExclude or 
+
+        If you set this property in a configuration, do not use either the MembersToExclude or
         MembersToInclude property. Doing so will generate an error.
 
     .PARAMETER MembersToInclude
         Use this property to add members to the existing membership of the group.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
-        
+
         If you set this property in a configuration, do not use the Members property.
         Doing so will generate an error.
 
     .PARAMETER MembersToExclude
         Use this property to remove members from the existing membership of the group.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
-        
+
         If you set this property in a configuration, do not use the Members property.
         Doing so will generate an error.
 
@@ -881,9 +897,12 @@ function Set-TargetResourceOnNanoServer
         $Credential
     )
 
+    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to the group's SID, for internal use.
     try
     {
-        $group = Get-LocalGroup -Name $GroupName -ErrorAction 'Stop'
+
+        $group = Get-LocalGroup -Name $GroupSID-ErrorAction 'Stop'
         $groupOriginallyExists = $true
     }
     catch [System.Exception]
@@ -891,7 +910,7 @@ function Set-TargetResourceOnNanoServer
         if ($_.CategoryInfo.Reason -eq 'GroupNotFoundException')
         {
             # A group with the provided name does not exist.
-            Write-Verbose -Message ($script:localizedData.GroupDoesNotExist -f $GroupName)
+            Write-Verbose -Message ($script:localizedData.GroupDoesNotExist -f $GroupName,)
             $groupOriginallyExists = $false
         }
         else
@@ -919,11 +938,11 @@ function Set-TargetResourceOnNanoServer
             if (-not $groupOriginallyExists)
             {
                 $group = New-LocalGroup -Name $GroupName
-                Write-Verbose -Message ($script:localizedData.GroupCreated -f $GroupName)
+                Write-Verbose -Message ($script:localizedData.GroupCreated -f $GroupName, $GroupSID)
             }
 
             # Set the group properties.
-            if ($PSBoundParameters.ContainsKey('Description') -and 
+            if ($PSBoundParameters.ContainsKey('Description') -and
                 ((-not $groupOriginallyExists) -or ($Description -ne $group.Description)))
             {
                 Set-LocalGroup -Name $GroupName -Description $Description
@@ -1016,12 +1035,12 @@ function Set-TargetResourceOnNanoServer
             {
                 # The group exists. Remove the group by the provided name.
                 Remove-LocalGroup -Name $GroupName
-                Write-Verbose -Message ($script:localizedData.GroupRemoved -f $GroupName)
+                Write-Verbose -Message ($script:localizedData.GroupRemoved -f $GroupName, SID)
             }
         }
         else
         {
-            Write-Verbose -Message ($script:localizedData.NoConfigurationRequiredGroupDoesNotExist -f $GroupName)
+            Write-Verbose -Message ($script:localizedData.NoConfigurationRequiredGroupDoesNotExist -f $GroupName, $SID)
         }
     }
 }
@@ -1036,10 +1055,10 @@ function Set-TargetResourceOnNanoServer
 
     .PARAMETER Ensure
         Indicates if the group should exist or not.
-        
+
         Set this property to Present to ensure that the group exists.
         Set this property to Absent to ensure that the group does not exist.
-        
+
         The default value is Present.
 
     .PARAMETER Description
@@ -1048,8 +1067,8 @@ function Set-TargetResourceOnNanoServer
     .PARAMETER Members
         Use this property to test if the existing membership of the group matches
         the list provided.
-        
-        The value of this property is an array of strings of the formats domain qualified name 
+
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
 
@@ -1058,9 +1077,9 @@ function Set-TargetResourceOnNanoServer
 
     .PARAMETER MembersToInclude
         Use this property to test if members need to be added to the existing membership
-        of the group. 
+        of the group.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
 
@@ -1071,7 +1090,7 @@ function Set-TargetResourceOnNanoServer
         Use this property to test if members need to removed from the existing membership
         of the group.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
 
@@ -1119,21 +1138,24 @@ function Test-TargetResourceOnFullSKU
 
     try
     {
+      $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+        #This converts the $GroupName to a SID internally.
+
         $principalContext = Get-PrincipalContext `
             -PrincipalContextCache $PrincipalContextCache `
             -Disposables $disposables `
             -Scope $env:computerName
 
-        $group = Get-Group -GroupName $GroupName -PrincipalContext $principalContext
+        $group = Get-Group -GroupName $GroupSID-PrincipalContext $principalContext
 
         if ($null -eq $group)
         {
-            Write-Verbose -Message ($script:localizedData.GroupDoesNotExist -f $GroupName)
+            Write-Verbose -Message ($script:localizedData.GroupDoesNotExist -f $GroupName, $SID)
             return $Ensure -eq 'Absent'
         }
 
         $null = $disposables.Add($group)
-        Write-Verbose -Message ($script:localizedData.GroupExists -f $GroupName)
+        Write-Verbose -Message ($script:localizedData.GroupExists -f $GroupName, $SID)
 
         # Validate separate properties.
         if ($Ensure -eq 'Absent')
@@ -1297,10 +1319,10 @@ function Test-TargetResourceOnFullSKU
 
     .PARAMETER Ensure
         Indicates if the group should exist or not.
-        
+
         Set this property to Present to ensure that the group exists.
         Set this property to Absent to ensure that the group does not exist.
-        
+
         The default value is Present.
 
     .PARAMETER Description
@@ -1310,7 +1332,7 @@ function Test-TargetResourceOnFullSKU
         Use this property to test if the existing membership of the group matches
         the list provided.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
 
@@ -1321,7 +1343,7 @@ function Test-TargetResourceOnFullSKU
         Use this property to test if members need to be added to the existing membership
         of the group.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
 
@@ -1332,7 +1354,7 @@ function Test-TargetResourceOnFullSKU
         Use this property to test if members need to removed from the existing membership
         of the group.
 
-        The value of this property is an array of strings of the formats domain qualified name 
+        The value of this property is an array of strings of the formats domain qualified name
         (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
 
@@ -1583,6 +1605,9 @@ function Get-MembersOnFullSKU
         -PrincipalContextCache $PrincipalContextCache `
         -Disposables $Disposables `
         -Credential $Credential
+
+      $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+          #This converts the $GroupName to a SID internally.
     )
 
     foreach ($memberAsPrincipal in $membersAsPrincipals)
@@ -2000,7 +2025,7 @@ function Resolve-SidToPrincipal
         [Parameter(Mandatory = $true)]
         [ValidateNotNull()]
         [System.Security.Principal.SecurityIdentifier]
-        $Sid,
+         ,
 
         [Parameter(Mandatory = $true)]
         [ValidateNotNull()]
@@ -2117,7 +2142,7 @@ function Get-PrincipalContext
         }
 
         $principalContext = New-Object -TypeName 'System.DirectoryServices.AccountManagement.PrincipalContext' `
-            -ArgumentList @( [System.DirectoryServices.AccountManagement.ContextType]::Domain, $Scope, 
+            -ArgumentList @( [System.DirectoryServices.AccountManagement.ContextType]::Domain, $Scope,
                 $principalContextName, $Credential.GetNetworkCredential().Password )
 
         # Cache the PrincipalContext for this scope for subsequent calls.
@@ -2341,7 +2366,7 @@ function Find-Principal
     {
         return [System.DirectoryServices.AccountManagement.Principal]::FindByIdentity($PrincipalContext, $IdentityValue)
     }
-    
+
 }
 
 <#
@@ -2435,7 +2460,7 @@ function Clear-GroupMembers
         [System.DirectoryServices.AccountManagement.GroupPrincipal]
         $Group
     )
-    
+
     $Group.Members.Clear()
 }
 
@@ -2517,7 +2542,7 @@ function Remove-Group
         [System.DirectoryServices.AccountManagement.GroupPrincipal]
         $Group
     )
-    
+
     $Group.Delete()
 }
 
