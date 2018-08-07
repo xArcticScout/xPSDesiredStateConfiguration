@@ -315,7 +315,7 @@ function Test-TargetResource
     $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
       #This converts the $GroupName to a SID internally.
 
-    Assert-GroupNameValid -GroupName $SID
+    Assert-GroupNameValid -GroupName $GroupSID
 
     if (Test-IsNanoServer)
     {
@@ -431,7 +431,7 @@ function Get-TargetResourceOnNanoServer
 
     try
     {
-        $group = Get-LocalGroup -Name $GroupSID-ErrorAction 'Stop'
+        $group = Get-LocalGroup -Name $GroupSID -ErrorAction 'Stop'
     }
     catch
     {
@@ -557,7 +557,7 @@ function Set-TargetResourceOnFullSKU
         $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
           #This converts the $GroupName to a SID internally, to check whether or not a group exists.
 
-        $group = Get-Group -GroupName $GroupSID-PrincipalContext $principalContext
+        $group = Get-Group -GroupName $GroupSID -PrincipalContext $principalContext
         $groupOriginallyExists = $null -ne $group
 
         if ($Ensure -eq 'Present')
@@ -910,7 +910,7 @@ function Set-TargetResourceOnNanoServer
         if ($_.CategoryInfo.Reason -eq 'GroupNotFoundException')
         {
             # A group with the provided name does not exist.
-            Write-Verbose -Message ($script:localizedData.GroupDoesNotExist -f $GroupName,)
+            Write-Verbose -Message ($script:localizedData.GroupDoesNotExist -f $GroupName)
             $groupOriginallyExists = $false
         }
         else
@@ -1035,12 +1035,12 @@ function Set-TargetResourceOnNanoServer
             {
                 # The group exists. Remove the group by the provided name.
                 Remove-LocalGroup -Name $GroupName
-                Write-Verbose -Message ($script:localizedData.GroupRemoved -f $GroupName, SID)
+                Write-Verbose -Message ($script:localizedData.GroupRemoved -f $GroupName, $GroupSID)
             }
         }
         else
         {
-            Write-Verbose -Message ($script:localizedData.NoConfigurationRequiredGroupDoesNotExist -f $GroupName, $SID)
+            Write-Verbose -Message ($script:localizedData.NoConfigurationRequiredGroupDoesNotExist -f $GroupName, $GroupSID)
         }
     }
 }
@@ -1150,12 +1150,12 @@ function Test-TargetResourceOnFullSKU
 
         if ($null -eq $group)
         {
-            Write-Verbose -Message ($script:localizedData.GroupDoesNotExist -f $GroupName, $SID)
+            Write-Verbose -Message ($script:localizedData.GroupDoesNotExist -f $GroupName, $GroupSID)
             return $Ensure -eq 'Absent'
         }
 
         $null = $disposables.Add($group)
-        Write-Verbose -Message ($script:localizedData.GroupExists -f $GroupName, $SID)
+        Write-Verbose -Message ($script:localizedData.GroupExists -f $GroupName, $GroupSID)
 
         # Validate separate properties.
         if ($Ensure -eq 'Absent')
@@ -1724,7 +1724,7 @@ function Get-MembersAsPrincipalsList
         {
             <#
                 The account is stale either becuase it was deleted or the machine was moved to a
-                new domain without removing the domain members from the group. If we consider this
+                new domain without removing the domain members from the group. If we con er this
                 a fatal error, the group is no longer managable by the DSC resource.  Writing a
                 warning allows the operation to complete while leaving the stale member in the
                 group.
@@ -2037,7 +2037,7 @@ function Resolve-SidToPrincipal
         $Scope
     )
 
-    $principal = Find-Principal -PrincipalContext $PrincipalContext -IdentityValue $Sid.Value -IdentityType ([System.DirectoryServices.AccountManagement.IdentityType]::Sid)
+    $principal = Find-Principal -PrincipalContext $PrincipalContext -IdentityValue  .Value -IdentityType ([System.DirectoryServices.AccountManagement.IdentityType]::Sid)
 
     if ($null -eq $principal)
     {
