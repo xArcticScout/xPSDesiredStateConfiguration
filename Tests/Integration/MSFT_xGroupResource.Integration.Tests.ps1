@@ -50,10 +50,13 @@ try
         It 'Should create an empty group' {
             $configurationName = 'CreateEmptyGroup'
             $testGroupName = 'TestEmptyGroup1'
+            $testGroupSID = ( [Security.Principal.NTAccount]$testGroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+        #This converts the $GroupName to a SID internally, to check whether or not a group exists.
 
             $resourceParameters = @{
                 Ensure = 'Present'
                 GroupName = $testGroupName
+                GroupSID = testGroupSID
             }
 
             Test-GroupExists -GroupName $testGroupName | Should Be $false
@@ -80,13 +83,15 @@ try
         It 'Should not change the state of the present built-in Users group when no Members specified' {
             $configurationName = 'BuiltInGroup'
             $testGroupName = 'Users'
+            $testGroupSID = ( [Security.Principal.NTAccount]$testGroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
 
             $resourceParameters = @{
                 Ensure = 'Present'
                 GroupName = $testGroupName
+                GroupSID = $testGroupSID
             }
 
-            Test-GroupExists -GroupName $testGroupName | Should Be $true
+            Test-GroupExists -GroupSID $testGroupSID | Should Be $true
 
             {
                 . $script:confgurationNoMembersFilePath -ConfigurationName $configurationName
@@ -94,7 +99,7 @@ try
                 Start-DscConfiguration -Path $TestDrive -ErrorAction 'Stop' -Wait -Force
             } | Should Not Throw
 
-            Test-GroupExists -GroupName $testGroupName | Should Be $true
+            Test-GroupExists -GroupSID $testGroupSID | Should Be $true
         }
 
         It 'Should add a member to the built-in Users group with MembersToInclude' {
