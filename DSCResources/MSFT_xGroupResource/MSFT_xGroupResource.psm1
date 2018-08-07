@@ -2025,7 +2025,7 @@ function Resolve-SidToPrincipal
         [Parameter(Mandatory = $true)]
         [ValidateNotNull()]
         [System.Security.Principal.SecurityIdentifier]
-         ,
+         $sid,
 
         [Parameter(Mandatory = $true)]
         [ValidateNotNull()]
