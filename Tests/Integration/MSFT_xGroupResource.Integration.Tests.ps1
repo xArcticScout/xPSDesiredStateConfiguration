@@ -181,7 +181,7 @@ try
                     Start-DscConfiguration -Path $TestDrive -ErrorAction 'Stop' -Wait -Force
                 } | Should Not Throw
 
-                Test-GroupExists -GroupName $testGroupSID -MembersToInclude $groupMembers | Should Be $true
+                Test-GroupExists -GroupName $testGroupName -MembersToInclude $groupMembers | Should Be $true
             }
             finally
             {
