@@ -54,7 +54,6 @@ try
             $resourceParameters = @{
                 Ensure = 'Present'
                 GroupName = $testGroupName
-                GroupSID = $testGroupSID
             }
 
             Test-GroupExists -GroupName $testGroupName | Should Be $false
@@ -81,6 +80,7 @@ try
         It 'Should not change the state of the present built-in Users group when no Members specified' {
             $configurationName = 'BuiltInGroup'
             $testGroupName = 'Users'
+             $resourceParameters = @{
                 Ensure = 'Present'
                 GroupName = $testGroupName
             }
