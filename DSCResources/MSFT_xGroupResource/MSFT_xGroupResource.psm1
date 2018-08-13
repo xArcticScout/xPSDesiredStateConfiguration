@@ -213,10 +213,9 @@ function Set-TargetResource
     Write-Verbose ($script:localizedData.SetTargetResourceStartMessage -f $GroupName)
 
 
-    $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-      #This converts the $GroupName to the SID for that group internally, to check whether or not a group exists.
 
-    Assert-GroupNameValid -GroupName $GroupSID
+    Assert-GroupNameValid -GroupName $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to the SID for that group internally, to check whether or not a group exists.
 
     if (Test-IsNanoServer)
     {
@@ -312,10 +311,9 @@ function Test-TargetResource
         $Credential
     )
 
-    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-      #This converts the $GroupName to a SID internally.
 
-    Assert-GroupNameValid -GroupName $GroupSID
+    Assert-GroupNameValid -GroupName $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to a SID internally.
 
     if (Test-IsNanoServer)
     {
@@ -368,7 +366,7 @@ function Get-TargetResourceOnFullSKU
             -Disposables $Disposables `
             -Scope $env:COMPUTERNAME
 
-        $group = Get-Group -GroupName $GroupSID-PrincipalContext $principalContext
+        $group = Get-Group -GroupName $GroupSID -PrincipalContext $principalContext
 
         if ($null -ne $group)
         {
@@ -2025,7 +2023,7 @@ function Resolve-SidToPrincipal
         [Parameter(Mandatory = $true)]
         [ValidateNotNull()]
         [System.Security.Principal.SecurityIdentifier]
-         $sid,
+         $Sid,
 
         [Parameter(Mandatory = $true)]
         [ValidateNotNull()]
