@@ -99,7 +99,10 @@ function Test-GroupExistsOnFullSKU
     $principalContext = New-Object -TypeName 'System.DirectoryServices.AccountManagement.PrincipalContext' `
         -ArgumentList @( [System.DirectoryServices.AccountManagement.ContextType]::Machine )
 
-    $group = [System.DirectoryServices.AccountManagement.GroupPrincipal]::FindByIdentity($principalContext, $GroupName)
+    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+          #This converts the $GroupName to the group's SID, for internal use.
+
+    $group = [System.DirectoryServices.AccountManagement.GroupPrincipal]::FindByIdentity($principalContext, $GroupSID)
     $groupExists = $null -ne $group
 
     if ($groupExists)
@@ -237,7 +240,10 @@ function Test-GroupExistsOnNanoServer
 
     try
     {
-        $null = Get-LocalGroup -Name $GroupName
+      $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+        #This converts the $GroupName to the group's SID, for internal use.
+
+        $null = Get-LocalGroup -Name $GroupSID
     }
     catch [System.Exception]
     {
