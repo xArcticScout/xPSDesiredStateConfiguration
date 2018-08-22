@@ -21,8 +21,8 @@ try
             BeforeAll {
                 $script:disposableObjects = @()
 
-                $script:testGroupName = 'TestGroup'
-                $script:testGroupSID = $GroupSID= ( [Security.Principal.NTAccount]$testGroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+                $script:testGroupSID = 'TestGroup'
+                $script:testGroupSID = $GroupSID= ( [Security.Principal.NTAccount]$testGroupSID ).Translate( [Security.Principal.SecurityIdentifier] ).Value
         #This converts the $GroupName to a SID internally, to check whether or not a group exists.
 
                 $script:testGroupDescription = 'A group for testing'

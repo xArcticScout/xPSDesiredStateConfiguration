@@ -45,8 +45,7 @@ function Test-GroupExists
         [String[]]
         $MembersToExclude
     )
-    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-    #This converts the $GroupName to a SID internally, to check whether or not a group exists.
+
     if (Test-IsNanoServer)
     {
         return Test-GroupExistsOnNanoServer @PSBoundParameters
@@ -99,6 +98,7 @@ function Test-GroupExistsOnFullSKU
 
     $principalContext = New-Object -TypeName 'System.DirectoryServices.AccountManagement.PrincipalContext' `
         -ArgumentList @( [System.DirectoryServices.AccountManagement.ContextType]::Machine )
+
     $group = [System.DirectoryServices.AccountManagement.GroupPrincipal]::FindByIdentity($principalContext, $GroupName)
     $groupExists = $null -ne $group
 
@@ -566,9 +566,8 @@ function Remove-GroupOnNanoServer
         [String]
         $GroupName
     )
-    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-    #This converts the $GroupName to a SID internally, to check whether or not a group exists.
-    Remove-LocalGroup -Name $GroupSID
+
+    Remove-LocalGroup -Name $GroupName
 }
 
 <#
