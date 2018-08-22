@@ -102,6 +102,8 @@ function Get-TargetResource
     )
 
     Assert-GroupNameValid -GroupName $GroupName
+    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to the group's SID, for internal use.
 
     if (Test-IsNanoServer)
     {
@@ -214,7 +216,9 @@ function Set-TargetResource
 
 
 
-    Assert-GroupNameValid -GroupName $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+    Assert-GroupNameValid -GroupName $GroupName
+
+    $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
       #This converts the $GroupName to the SID for that group internally, to check whether or not a group exists.
 
     if (Test-IsNanoServer)
@@ -312,17 +316,18 @@ function Test-TargetResource
     )
 
 
-    Assert-GroupNameValid -GroupName $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+    Assert-GroupNameValid -GroupName $GroupSID
+    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
       #This converts the $GroupName to a SID internally.
 
     if (Test-IsNanoServer)
     {
-        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnNanoServer', $GroupName, $GroupSID)
+        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnNanoServer', $GroupName)
         return Test-TargetResourceOnNanoServer @PSBoundParameters
     }
     else
     {
-        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnFullSKU', $GroupName, $GroupSID)
+        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnFullSKU', $GroupName)
         return Test-TargetResourceOnFullSKU @PSBoundParameters
     }
 }
@@ -387,7 +392,7 @@ function Get-TargetResourceOnFullSKU
         {
             # The group was not found.
             return @{
-                GroupName = $GroupName, $GroupSID
+                GroupName = $GroupName
                 Ensure = 'Absent'
             }
         }
@@ -424,12 +429,11 @@ function Get-TargetResourceOnNanoServer
         $Credential
     )
 
-    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-      #This converts the $GroupName to a SID internally, to check whether or not a group exists.
-
     try
     {
-        $group = Get-LocalGroup -Name $GroupSID -ErrorAction 'Stop'
+        $group = Get-LocalGroup -Name $GroupName-ErrorAction 'Stop'
+        $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+          #This converts the $GroupName to a SID internally, to check whether or not a group exists.
     }
     catch
     {
@@ -555,12 +559,12 @@ function Set-TargetResourceOnFullSKU
         $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
           #This converts the $GroupName to a SID internally, to check whether or not a group exists.
 
-        $group = Get-Group -GroupName $GroupSID -PrincipalContext $principalContext
+        $group = Get-Group -GroupName $GroupName -PrincipalContext $principalContext
         $groupOriginallyExists = $null -ne $group
 
         if ($Ensure -eq 'Present')
         {
-            $shouldProcessTarget = $script:localizedData.GroupWithName -f $GroupSID
+            $shouldProcessTarget = $script:localizedData.GroupWithName -f $GroupName
             if ($groupOriginallyExists)
             {
                 $null = $disposables.Add($group)
@@ -801,7 +805,7 @@ function Set-TargetResourceOnFullSKU
             }
             else
             {
-                Write-Verbose -Message ($script:localizedData.NoConfigurationRequiredGroupDoesNotExist -f $GroupName, $GroupSID)
+                Write-Verbose -Message ($script:localizedData.NoConfigurationRequiredGroupDoesNotExist -f $GroupName)
             }
         }
     }
@@ -895,12 +899,11 @@ function Set-TargetResourceOnNanoServer
         $Credential
     )
 
-    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-      #This converts the $GroupName to the group's SID, for internal use.
     try
     {
-
-        $group = Get-LocalGroup -Name $GroupSID-ErrorAction 'Stop'
+      $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+        #This converts the $GroupName to the group's SID, for internal use.
+        $group = Get-LocalGroup -Name $GroupName-ErrorAction 'Stop'
         $groupOriginallyExists = $true
     }
     catch [System.Exception]
@@ -1144,7 +1147,7 @@ function Test-TargetResourceOnFullSKU
             -Disposables $disposables `
             -Scope $env:computerName
 
-        $group = Get-Group -GroupName $GroupSID-PrincipalContext $principalContext
+        $group = Get-Group -GroupName $GroupName-PrincipalContext $principalContext
 
         if ($null -eq $group)
         {
@@ -1396,8 +1399,9 @@ function Test-TargetResourceOnNanoServer
     )
 
     try
-    {
-        $group = Get-LocalGroup -Name $GroupName -ErrorAction Stop
+    {   $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+      #This converts the $GroupName to a SID internally, to check whether or not a group exists.
+        $group = Get-LocalGroup -Name $GroupSID -ErrorAction Stop
     }
     catch [System.Exception]
     {
@@ -1603,9 +1607,6 @@ function Get-MembersOnFullSKU
         -PrincipalContextCache $PrincipalContextCache `
         -Disposables $Disposables `
         -Credential $Credential
-
-      $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-          #This converts the $GroupName to a SID internally.
     )
 
     foreach ($memberAsPrincipal in $membersAsPrincipals)
