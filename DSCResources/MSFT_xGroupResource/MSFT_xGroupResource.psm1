@@ -103,6 +103,7 @@ function Get-TargetResource
 
     Assert-GroupNameValid -GroupName $GroupName
 
+
     if (Test-IsNanoServer)
     {
         Write-Verbose -Message ($script:localizedData.InvokingFunctionForGroup -f 'Get-TargetResourceOnNanoServer', $GroupName)
@@ -209,12 +210,19 @@ function Set-TargetResource
         [System.Management.Automation.Credential()]
         $Credential
     )
+      $group= get-localGroup -GroupName $GroupName
+        if ($Group -ge 2){
+        $GroupSID = Read-Host -Prompt 'Please specify the group you want to modify by inputting the SID of the group'
+        $GroupName= (New-Object System.Security.Principal.SecurityIdentifier($GroupSID)).Translate([System.Security.Principal.NTAccount]).value
+      }
+      else{
+        $group= get-localGroup -GroupName $GroupName
+      }
 
     Write-Verbose ($script:localizedData.SetTargetResourceStartMessage -f $GroupName)
 
-
-
-    Assert-GroupNameValid -GroupName $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+    Assert-GroupNameValid -GroupName $GroupName
+    $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
       #This converts the $GroupName to the SID for that group internally, to check whether or not a group exists.
 
     if (Test-IsNanoServer)
@@ -315,14 +323,15 @@ function Test-TargetResource
     Assert-GroupNameValid -GroupName $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
       #This converts the $GroupName to a SID internally.
 
+
     if (Test-IsNanoServer)
     {
-        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnNanoServer', $GroupName, $GroupSID)
+        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnNanoServer', $GroupName)
         return Test-TargetResourceOnNanoServer @PSBoundParameters
     }
     else
     {
-        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnFullSKU', $GroupName, $GroupSID)
+        Write-Verbose ($script:localizedData.InvokingFunctionForGroup -f 'Test-TargetResourceOnFullSKU', $GroupName)
         return Test-TargetResourceOnFullSKU @PSBoundParameters
     }
 }
@@ -356,15 +365,15 @@ function Get-TargetResourceOnFullSKU
     $principalContextCache = @{}
     $disposables = New-Object -TypeName 'System.Collections.ArrayList'
 
-    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-      #This converts the $GroupName to a SID internally, to check whether or not a group exists.
-
     try
     {
         $principalContext = Get-PrincipalContext `
             -PrincipalContextCache $principalContextCache `
             -Disposables $Disposables `
             -Scope $env:COMPUTERNAME
+
+        $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+              #This converts the $GroupName to a SID internally, to check whether or not a group exists.
 
         $group = Get-Group -GroupName $GroupSID -PrincipalContext $principalContext
 
@@ -387,7 +396,7 @@ function Get-TargetResourceOnFullSKU
         {
             # The group was not found.
             return @{
-                GroupName = $GroupName, $GroupSID
+                GroupName = $GroupName
                 Ensure = 'Absent'
             }
         }
@@ -423,14 +432,11 @@ function Get-TargetResourceOnNanoServer
         [System.Management.Automation.Credential()]
         $Credential
     )
-
-    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-      #This converts the $GroupName to a SID internally, to check whether or not a group exists.
-
     try
     {
         $group = Get-LocalGroup -Name $GroupSID -ErrorAction 'Stop'
-    }
+      }
+
     catch
     {
         if ($_.CategoryInfo.Reason -eq 'GroupNotFoundException')
@@ -894,12 +900,10 @@ function Set-TargetResourceOnNanoServer
         [System.Management.Automation.Credential()]
         $Credential
     )
-
-    $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-      #This converts the $GroupName to the group's SID, for internal use.
     try
     {
-
+      $GroupSID= ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
+        #This converts the $GroupName to the group's SID, for internal use.
         $group = Get-LocalGroup -Name $GroupSID-ErrorAction 'Stop'
         $groupOriginallyExists = $true
     }
@@ -1067,7 +1071,7 @@ function Set-TargetResourceOnNanoServer
         the list provided.
 
         The value of this property is an array of strings of the formats domain qualified name
-        (domain\username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
+        ( \username), UPN (username@domainname), distinguished name (CN=username,DC=...) and/or
         a unqualified (username) for local machine accounts.
 
         If you set this property in a configuration, do not use either the MembersToExclude or
@@ -1604,8 +1608,6 @@ function Get-MembersOnFullSKU
         -Disposables $Disposables `
         -Credential $Credential
 
-      $GroupSID = ( [Security.Principal.NTAccount]$GroupName ).Translate( [Security.Principal.SecurityIdentifier] ).Value
-          #This converts the $GroupName to a SID internally.
     )
 
     foreach ($memberAsPrincipal in $membersAsPrincipals)
